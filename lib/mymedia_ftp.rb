@@ -8,11 +8,11 @@ require 'fileutils'
 
 class MyMediaFTP < Net::FTP
 
-  def initialize(host: '127.0.0.1', user: 'user', password: '1234')
+  def initialize(host: '127.0.0.1', user: 'user', password: '1234', port: 21)
 
     @curdir = Dir.pwd
     super()
-    connect(host, 21)
+    connect(host, port)
     login(user, password)
 
   end
