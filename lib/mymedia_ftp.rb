@@ -8,10 +8,21 @@ require 'fileutils'
 
 class MyMediaFTP < Net::FTP
 
-  def initialize(host: '127.0.0.1', user: 'user', password: '1234', 
+  def initialize(s=nil, host: '127.0.0.1', user: 'user', password: '1234', 
                  port: 21, debug: false)
 
+    if s then
+      
+      r = s.match(/(?<user>\w+):(?<password>\w+)@(?<host>[^:]+)(?:\:(?<port>\d+))?/)
+      h = r.named_captures.map {|k,v| [k.to_sym, v]}.to_h
+      puts 'h: ' + h.inspect if debug
+      user, password, host = h.values.take(3)
+      port = h[:port] if h[:port]
+      
+    end
+    
     @debug = debug
+
     @curdir = '/'
     super()
     connect(host, port)
@@ -23,9 +34,13 @@ class MyMediaFTP < Net::FTP
     super(dir)
     @curdir = pwd
   end
+  
+  alias cd chdir
 
-  def cp(src='', dest='', &blk)
+  def cp(src='', dest='', direction=:inbound, &blk)
 
+    return outbound_cp(src, dest) if direction == :outbound
+    
     puts 'cp: ' + src.inspect if @debug
     chdir File.dirname(src)
     FileUtils.mkdir_p dest
@@ -42,13 +57,22 @@ class MyMediaFTP < Net::FTP
       puts name
       
       if type == :file then
-        getbinaryfile name, name.downcase.gsub(/ +/,'-')
+        begin
+          getbinaryfile name, name.downcase.gsub(/ +/,'-')
+        rescue Net::FTPPermError => e
+          puts 'e: ' + e.inspect
+        end
       else
         cp_dir(name, &blk)
       end
       blk.call(name, type) if block_given?
     end
 
+  end
+  
+  def delete(filename)
+    super(filename)
+    'file deleted'
   end
   
   def list_filenames(s=@curdir+'/*')
@@ -88,6 +112,8 @@ class MyMediaFTP < Net::FTP
 
   end
   
+  alias rm delete
+  
   private
   
   def cp_dir(directory, &blk)
@@ -98,6 +124,15 @@ class MyMediaFTP < Net::FTP
     chdir directory
     cp('*', directory, &blk)
     chdir parent_dir
+  end
+  
+  def outbound_cp(src, destination='.')
+    
+    if File.basename(destination) == '.' then
+      destination.sub!(/\.$/, File.basename(src))
+    end
+    
+    putbinaryfile(src, destination)
   end
     
 end
