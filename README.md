@@ -1,3 +1,24 @@
+# Copying a file to a remote FTP location using the Mymedia_ftp gem
+
+    require 'mymedia_ftp'
+
+    ftp = MyMediaFTP.new('ftp://james:secretpassword@phone.home:2221')
+    ftp.ls #=> [{:name=>"notes060820.txt", :type=>:file}] 
+    ftp.cd 'notes'
+    ftp.cp '/tmp/notes060920.txt', '.', :outbound
+    ftp.close
+
+
+In the above example a file is uploaded to the FTP server.
+
+Notes:
+
+* By default, all operations are performed on the remote location unless specified by the keyword :outbound.
+
+ftp mymediaftp
+
+---------------------
+
 # Introducing the MyMedia FTP gem
 
     require 'mymedia_ftp'
