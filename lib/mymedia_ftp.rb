@@ -3,11 +3,51 @@
 # file: mymedia_ftp.rb
 
 require 'net/ftp'
+require 'tempfile'
 require 'fileutils'
 
 
 class MyMediaFTP < Net::FTP
 
+  def self.cp(src, dest, debug: false)
+    
+    if src =~ /^ftp:\/\// then
+      uri, remotepath = src.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures    
+      new(uri, debug: debug).cp(remotepath, dest, :inbound)
+    else
+      uri, remotepath = dest.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures    
+      new(uri, debug: debug).cp(src, remotepath, :outbound)      
+    end    
+    
+  end
+  
+  def self.ls(s, debug: false)
+    
+    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures    
+    new(uri, debug: debug).ls(remotepath)
+    
+  end
+
+  def self.read(s, debug: false)
+        
+    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures
+    ftp = new(uri, debug: debug)
+    p ftp if debug
+    
+    tmpfile = Tempfile.new('ftp')
+
+    ftp.cp remotepath, tmpfile.path
+    File.read tmpfile.path
+
+  end
+  
+  def self.rm(s, debug: false)
+        
+    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures
+    new(uri, debug: debug).rm(remotepath)
+
+  end  
+  
   def initialize(s=nil, host: '127.0.0.1', user: 'user', password: '1234', 
                  port: 21, debug: false)
 
@@ -43,29 +83,24 @@ class MyMediaFTP < Net::FTP
     
     puts 'cp: ' + src.inspect if @debug
     chdir File.dirname(src)
-    FileUtils.mkdir_p dest
-    Dir.chdir  dest
+    dir = File.dirname(dest)
+    FileUtils.mkdir_p dir
+    Dir.chdir  dir
 
-    files = list_filenames(src)
-
-    puts 'copying ...'
-
-    files.each do |h|
-
-      name, type = h[:name], h[:type]
+    puts 'copying ...' if @debug
+    
+    files = if src =~ /[\*\?]/ then
+    
+      cp_files(src)
       
-      puts name
+    else
       
-      if type == :file then
-        begin
-          getbinaryfile name, name.downcase.gsub(/ +/,'-')
-        rescue Net::FTPPermError => e
-          puts 'e: ' + e.inspect
-        end
-      else
-        cp_dir(name, &blk)
-      end
-      blk.call(name, type) if block_given?
+      begin
+        getbinaryfile src, dest
+      rescue Net::FTPPermError => e
+        puts 'e: ' + e.inspect
+      end      
+      
     end
 
   end
@@ -82,20 +117,30 @@ class MyMediaFTP < Net::FTP
       puts 's: ' + s.inspect
     end
     
-    src = File.dirname(s)
+    if s =~ /\*/ then
+      
+      src = File.dirname(s)
 
-    raw_q = File.basename(s)
-    puts 'raw_q: ' + raw_q.inspect if @debug
-    
-    q = raw_q.gsub('.','\.').gsub('*','.*').gsub('?','.?')\
-        .sub(/[^\*\?\.]$/,'.*')
+      raw_q = File.basename(s)
+      puts 'raw_q: ' + raw_q.inspect if @debug
+      
+      q = raw_q.gsub('.','\.').gsub('*','.*').gsub('?','.?')\
+          .sub(/[^\*\?\.]$/,'.*')
+    else
+      src = s
+    end
 
     list(src).inject([]) do |r, x| 
 
       raw_attr, _, owner, group, filesize, month, day, time, filename = \
           x.split(/ +/,9)
       type = raw_attr =~ /d/ ? :directory : :file
-      filename[/^#{q}$/] ? r << {name: filename, type: type} : r
+      
+      if q then
+        filename[/^#{q}$/] ? r << {name: filename, type: type} : r
+      else
+        r << {name: filename, type: type}
+      end
       r
     end
 
@@ -124,6 +169,29 @@ class MyMediaFTP < Net::FTP
     chdir directory
     cp('*', directory, &blk)
     chdir parent_dir
+  end
+  
+  def cp_files(src)
+    
+    files = list_filenames(src)    
+    
+    files.each do |h|
+
+      name, type = h[:name], h[:type]
+      
+      puts name
+      
+      if type == :file then
+        begin
+          getbinaryfile name, name.downcase.gsub(/ +/,'-')
+        rescue Net::FTPPermError => e
+          puts 'e: ' + e.inspect
+        end
+      else
+        cp_dir(name, &blk)
+      end
+      blk.call(name, type) if block_given?
+    end    
   end
   
   def outbound_cp(src, destination='.')
