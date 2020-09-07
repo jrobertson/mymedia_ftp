@@ -23,7 +23,8 @@ class MyMediaFTP < Net::FTP
   
   def self.ls(s, debug: false)
     
-    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures    
+    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]*)/).captures    
+    puts 'remotepath'  + remotepath if debug
     new(uri, debug: debug).ls(remotepath)
     
   end
