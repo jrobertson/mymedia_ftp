@@ -23,9 +23,9 @@ class MyMediaFTP < Net::FTP
   
   def self.ls(s, debug: false)
     
-    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]*)/).captures    
-    puts 'remotepath'  + remotepath if debug
-    new(uri, debug: debug).ls(remotepath)
+    uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]*)?/).captures
+    puts 'remotepath'  + remotepath.inspect if debug
+    new(uri, debug: debug).ls(remotepath || '/')
     
   end
 
@@ -46,6 +46,14 @@ class MyMediaFTP < Net::FTP
         
     uri, remotepath = s.match(/^(ftp:\/\/[^\/]+)(\/[^$]+)/).captures
     new(uri, debug: debug).rm(remotepath)
+
+  end  
+  
+  def self.write(s, content='', debug: false)
+            
+    tmpfile = Tempfile.new('ftp')    
+    File.write tmpfile.path, content    
+    self.cp tmpfile.path, s
 
   end  
   
