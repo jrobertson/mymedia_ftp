@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'mymedia_ftp'
-  s.version = '0.3.2'
+  s.version = '0.3.3'
   s.summary = 'A MyMedia FTP client which uses Net/FTP.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/mymedia_ftp.rb']

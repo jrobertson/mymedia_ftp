@@ -119,7 +119,7 @@ class MyMediaFTP < Net::FTP
     'file deleted'
   end
   
-  def list_filenames(s=@curdir+'/*')
+  def list_filenames(s=@curdir+'/*', ctimesort: false)
     
     if @debug
       puts 'inside list_filenames' 
@@ -143,12 +143,13 @@ class MyMediaFTP < Net::FTP
 
       raw_attr, _, owner, group, filesize, month, day, time, filename = \
           x.split(/ +/,9)
-      type = raw_attr =~ /d/ ? :directory : :file
+      type = raw_attr[0] == 'd' ? :directory : :file
+      d = Time.parse([Date.today.year, month, day, time].join(' ') )
       
       if q then
-        filename[/^#{q}$/] ? r << {name: filename, type: type} : r
+        filename[/^#{q}$/] ? r << {name: filename, type: type, filesize: filesize, ctime: d} : r
       else
-        r << {name: filename, type: type}
+        r << {name: filename, type: type, filesize: filesize, ctime: d}
       end
       r
     end
